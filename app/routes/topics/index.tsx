@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
 import { desc, sql } from 'drizzle-orm';
 
 import { db } from '../../db';
@@ -6,36 +7,38 @@ import { topics, votes } from '../../schema/topics';
 
 export const Route = createFileRoute('/topics/')({
   component: RouteComponent,
-  loader: async () => {
-    const fetchedTopics = await db.query.topics.findMany({
-      orderBy: desc(topics.createdAt),
-      columns: {
-        id: true,
-        title: true,
-        description: true,
-        createdAt: true,
-      },
-      with: {
-        creator: {
-          columns: {
-            id: true,
-            name: true,
-          },
+  loader: async () => getTopics()
+});
+
+const getTopics = createServerFn().handler(async () => {
+  const fetchedTopics = await db.query.topics.findMany({
+    orderBy: desc(topics.createdAt),
+    columns: {
+      id: true,
+      title: true,
+      description: true,
+      createdAt: true,
+    },
+    with: {
+      creator: {
+        columns: {
+          id: true,
+          name: true,
         },
       },
-      extras: {
-        votes:
-          sql<number>`(SELECT COUNT(*) FROM ${votes} WHERE ${votes.topicId} = ${topics.id})`.as(
-            'votes'
-          ),
-      },
-    });
+    },
+    extras: {
+      votes:
+        sql<number>`(SELECT COUNT(*) FROM ${votes} WHERE ${votes.topicId} = ${topics.id})`.as(
+          'votes'
+        ),
+    },
+  });
 
-    return {
-      topics: fetchedTopics,
-    };
-  },
-});
+  return {
+    topics: fetchedTopics,
+  };
+})
 
 function RouteComponent() {
   const { topics } = Route.useLoaderData();
